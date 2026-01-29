@@ -392,4 +392,4 @@ end)
 
 tpButton.MouseButton1Click:Connect(function()
 	tpPanel.Visible = not tpPanel.Visible
-end
+end)
