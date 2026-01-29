@@ -1,18 +1,20 @@
 --// JY UI FINAL
---// TP SECTION RESTORED + HIGH JUMP FIXED + SPAM TP ADDED
---// SPEED PANEL REMOVED, UNLOCK ZOOM REMOVED
+--// TP SECTION RESTORED + AUTO HIT FIXED + ANTI-RAGDOLL FULL + REAL CIRCLE
+--// SPEED PANEL REMOVED, UNLOCK ZOOM REMOVED, HIGH JUMP REMOVED
 --// NOTHING ELSE CHANGED
 
 local Players = game:GetService("Players")
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
 local player = Players.LocalPlayer
 
 --// STATES
 local INSTA_STEAL_ENABLED = false
 local SITE_LOCATION_ENABLED = false
-local HIGHJUMP_ENABLED = false
+local AUTOHIT_ENABLED = false
+local ANTI_RAGDOLL_ENABLED = false
 local ORIGINAL_HOLD = {}
 local TP_SPAM_RUNNING = {}
 
@@ -48,8 +50,8 @@ addGlow(logo)
 
 --// MAIN PANEL
 local panel = Instance.new("Frame")
-panel.Size = UDim2.fromOffset(320,300)
-panel.Position = UDim2.new(0.5,-160,0.5,-150)
+panel.Size = UDim2.fromOffset(320,320)
+panel.Position = UDim2.new(0.5,-160,0.5,-160)
 panel.BackgroundColor3 = Color3.fromRGB(15,15,15)
 panel.BackgroundTransparency = 0.3
 panel.Visible = false
@@ -117,12 +119,13 @@ end
 
 local instaSwitch, instaKnob = createSwitchRow("Insta Steal",70)
 local siteSwitch, siteKnob   = createSwitchRow("Site Location",110)
-local highJumpSwitch, highJumpKnob = createSwitchRow("High Jump",150)
+local autoHitSwitch, autoHitKnob = createSwitchRow("Auto Hit",150)
+local antiRagdollSwitch, antiRagdollKnob = createSwitchRow("Anti-Ragdoll",190)
 
 --// TP SECTION BUTTON
 local tpRow = Instance.new("Frame")
 tpRow.Size = UDim2.new(1,-20,0,40)
-tpRow.Position = UDim2.fromOffset(10,190)
+tpRow.Position = UDim2.fromOffset(10,230)
 tpRow.BackgroundTransparency = 1
 tpRow.Parent = mainScroll
 
@@ -293,22 +296,16 @@ siteSwitch.MouseButton1Click:Connect(function()
 	siteSwitch.BackgroundColor3 = SITE_LOCATION_ENABLED and Color3.fromRGB(0,200,200) or Color3.fromRGB(60,60,60)
 end)
 
-highJumpSwitch.MouseButton1Click:Connect(function()
-	HIGHJUMP_ENABLED = not HIGHJUMP_ENABLED
-	highJumpSwitch.BackgroundColor3 = HIGHJUMP_ENABLED and Color3.fromRGB(0,200,200) or Color3.fromRGB(60,60,60)
-	highJumpKnob:TweenPosition(HIGHJUMP_ENABLED and UDim2.fromOffset(28,2) or UDim2.fromOffset(2,2),"Out","Quad",0.15,true)
+autoHitSwitch.MouseButton1Click:Connect(function()
+	AUTOHIT_ENABLED = not AUTOHIT_ENABLED
+	autoHitSwitch.BackgroundColor3 = AUTOHIT_ENABLED and Color3.fromRGB(0,200,200) or Color3.fromRGB(60,60,60)
+	autoHitKnob:TweenPosition(AUTOHIT_ENABLED and UDim2.fromOffset(28,2) or UDim2.fromOffset(2,2),"Out","Quad",0.15,true)
 end)
 
-UserInputService.InputBegan:Connect(function(input, gpe)
-	if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.Space then
-		if HIGHJUMP_ENABLED and player.Character then
-			local humanoid = player.Character:FindFirstChild("Humanoid")
-			if humanoid and humanoid.FloorMaterial ~= Enum.Material.Air then
-				humanoid.JumpPower = 200 -- HIGH jump power
-				humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-			end
-		end
-	end
+antiRagdollSwitch.MouseButton1Click:Connect(function()
+	ANTI_RAGDOLL_ENABLED = not ANTI_RAGDOLL_ENABLED
+	antiRagdollSwitch.BackgroundColor3 = ANTI_RAGDOLL_ENABLED and Color3.fromRGB(0,200,200) or Color3.fromRGB(60,60,60)
+	antiRagdollKnob:TweenPosition(ANTI_RAGDOLL_ENABLED and UDim2.fromOffset(28,2) or UDim2.fromOffset(2,2),"Out","Quad",0.15,true)
 end)
 
 logo.MouseButton1Click:Connect(function()
@@ -328,6 +325,68 @@ RunService.RenderStepped:Connect(function()
 	if SITE_LOCATION_ENABLED and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
 		local p = player.Character.HumanoidRootPart.Position
 		coordText.Text = string.format("X: %.2f\nY: %.2f\nZ: %.2f",p.X,p.Y,p.Z)
+	end
+end)
+
+--// REAL CIRCLE AND AUTO HIT
+local circle = Instance.new("Part")
+circle.Anchored = true
+circle.CanCollide = false
+circle.Size = Vector3.new(100,0.1,100)
+circle.Color = Color3.fromRGB(255,255,255)
+circle.Transparency = 0.7
+circle.Parent = Workspace
+
+local mesh = Instance.new("SpecialMesh")
+mesh.MeshType = Enum.MeshType.Cylinder
+mesh.Scale = Vector3.new(50,0.1,50)
+mesh.Parent = circle
+
+local pulse = 0
+local pulseDir = 1
+local lastHit = 0
+
+RunService.RenderStepped:Connect(function(delta)
+	if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+		local myPos = player.Character.HumanoidRootPart.Position
+		circle.Position = Vector3.new(myPos.X, myPos.Y - 3, myPos.Z)
+
+		-- pulse animation
+		pulse = pulse + 0.02 * pulseDir
+		if pulse > 0.4 then pulseDir = -1 end
+		if pulse < 0 then pulseDir = 1 end
+		circle.Transparency = 0.3 + pulse
+
+		-- auto hit with 0.1 delay
+		if AUTOHIT_ENABLED then
+			lastHit = lastHit + delta
+			if lastHit >= 0.1 then
+				lastHit = 0
+				for _, target in pairs(Players:GetPlayers()) do
+					if target ~= player and target.Character and target.Character:FindFirstChild("HumanoidRootPart") and target.Character:FindFirstChild("Humanoid") then
+						local dist = (target.Character.HumanoidRootPart.Position - myPos).Magnitude
+						if dist <= 50 then
+							local tool = player.Character:FindFirstChildOfClass("Tool")
+							if tool then
+								tool:Activate()
+							end
+						end
+					end
+				end
+			end
+		end
+
+		-- anti ragdoll
+		if ANTI_RAGDOLL_ENABLED then
+			local humanoid = player.Character:FindFirstChild("Humanoid")
+			if humanoid then
+				humanoid.PlatformStand = false
+				humanoid.Sit = false
+				if humanoid:GetState() ~= Enum.HumanoidStateType.Running then
+					humanoid:ChangeState(Enum.HumanoidStateType.Running)
+				end
+			end
+		end
 	end
 end)
 
