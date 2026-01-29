@@ -18,6 +18,7 @@ local ANTI_RAGDOLL_ENABLED = false
 local ORIGINAL_HOLD = {}
 local TP_SPAM_RUNNING = {}
 local PLAYER_ESP_ENABLED = false
+local ZOOM_UNLOCK_ENABLED = false
 local espMarkers = {}
 
 --// GUI
@@ -148,10 +149,13 @@ miscLabel.Parent = mainScroll
 
 local playerSwitch, playerKnob = createSwitchRow("Player", 270, Color3.fromRGB(20,20,20)) -- darker
 
+--// NEW ZOOM UNLOCK OPTION
+local zoomSwitch, zoomKnob = createSwitchRow("Unlock Zoom Limits", 310, Color3.fromRGB(20,20,20))
+
 --// TP SECTION BUTTON
 local tpRow = Instance.new("Frame")
 tpRow.Size = UDim2.new(1,-20,0,40)
-tpRow.Position = UDim2.fromOffset(10,310)
+tpRow.Position = UDim2.fromOffset(10,350)
 tpRow.BackgroundTransparency = 1
 tpRow.Parent = mainScroll
 
@@ -340,6 +344,12 @@ playerSwitch.MouseButton1Click:Connect(function()
 	playerKnob:TweenPosition(PLAYER_ESP_ENABLED and UDim2.fromOffset(28,2) or UDim2.fromOffset(2,2),"Out","Quad",0.15,true)
 end)
 
+zoomSwitch.MouseButton1Click:Connect(function()
+	ZOOM_UNLOCK_ENABLED = not ZOOM_UNLOCK_ENABLED
+	zoomSwitch.BackgroundColor3 = ZOOM_UNLOCK_ENABLED and Color3.fromRGB(0,200,200) or Color3.fromRGB(60,60,60)
+	zoomKnob:TweenPosition(ZOOM_UNLOCK_ENABLED and UDim2.fromOffset(28,2) or UDim2.fromOffset(2,2),"Out","Quad",0.15,true)
+end)
+
 logo.MouseButton1Click:Connect(function()
 	panel.Visible = not panel.Visible
 end)
@@ -420,9 +430,18 @@ RunService.RenderStepped:Connect(function(delta)
 			end
 		end
 	end
+
+	-- Zoom unlock logic
+	if ZOOM_UNLOCK_ENABLED then
+		local StarterPlayer = game:GetService("StarterPlayer")
+		StarterPlayer.CameraMinZoomDistance = 0
+		StarterPlayer.CameraMaxZoomDistance = 10000
+		if player.CameraMinZoomDistance ~= 0 then player.CameraMinZoomDistance = 0 end
+		if player.CameraMaxZoomDistance ~= 10000 then player.CameraMaxZoomDistance = 10000 end
+	end
 end)
 
---// PLAYER ESP FIXED + AUTO UPDATE (WORKS PERFECT NOW)
+--// PLAYER ESP FIXED + AUTO UPDATE
 local function updateESP(target)
 	if PLAYER_ESP_ENABLED then
 		if target ~= player and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
