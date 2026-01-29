@@ -399,7 +399,7 @@ RunService.RenderStepped:Connect(function(delta)
 		if pulse < 0 then pulseDir = 1 end
 		circle.Transparency = 0.3 + pulse
 
-		-- auto hit with 0.1 delay
+		-- auto hit
 		if AUTOHIT_ENABLED then
 			lastHit = lastHit + delta
 			if lastHit >= 0.1 then
@@ -430,7 +430,7 @@ RunService.RenderStepped:Connect(function(delta)
 			end
 		end
 
-		-- Zoom unlock logic
+		-- Zoom unlock
 		if ZOOM_UNLOCK_ENABLED then
 			local StarterPlayer = game:GetService("StarterPlayer")
 			StarterPlayer.CameraMinZoomDistance = 0
@@ -441,49 +441,59 @@ RunService.RenderStepped:Connect(function(delta)
 	end
 end)
 
---// PLAYER ESP PERMANENT FIX
-local function applyESP(target)
-	if target ~= player and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-		if not espMarkers[target] then
-			-- Billboard Name
-			local billboard = Instance.new("BillboardGui")
-			billboard.Adornee = target.Character:FindFirstChild("HumanoidRootPart")
-			billboard.Size = UDim2.new(0,120,0,40)
-			billboard.AlwaysOnTop = true
-			billboard.StudsOffset = Vector3.new(0,3,0)
-			billboard.Parent = target.Character
-
-			local nameLabel = Instance.new("TextLabel")
-			nameLabel.Size = UDim2.new(1,0,1,0)
-			nameLabel.BackgroundTransparency = 1
-			nameLabel.TextColor3 = Color3.fromRGB(255,0,0)
-			nameLabel.TextScaled = true
-			nameLabel.Text = target.Name
-			nameLabel.Font = Enum.Font.GothamBold
-			nameLabel.Parent = billboard
-
-			-- Body box
-			local box = Instance.new("BoxHandleAdornment")
-			box.Adornee = target.Character:FindFirstChild("HumanoidRootPart")
-			box.Size = Vector3.new(3,6,2)
-			box.Color3 = Color3.fromRGB(0,0,0)
-			box.Transparency = 0.2 -- 80% black
-			box.AlwaysOnTop = true
-			box.ZIndex = 10
-			box.Parent = target.Character
-
-			espMarkers[target] = {billboard = billboard, box = box}
-		end
+--// PLAYER ESP FIXED (FULL GLOW + RED + HIGHLIGHT + BIG BLACK BOX)
+local function removeESP(target)
+	if espMarkers[target] then
+		if espMarkers[target].billboard then espMarkers[target].billboard:Destroy() end
+		if espMarkers[target].box then espMarkers[target].box:Destroy() end
+		espMarkers[target] = nil
 	end
 end
 
--- Connect to all existing and new players
+local function applyESP(target)
+	removeESP(target)
+	if target ~= player and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+		-- Billboard Name
+		local billboard = Instance.new("BillboardGui")
+		billboard.Adornee = target.Character.HumanoidRootPart
+		billboard.Size = UDim2.new(0,160,0,60) -- bigger
+		billboard.AlwaysOnTop = true
+		billboard.StudsOffset = Vector3.new(0,3,0)
+		billboard.Parent = target.Character
+
+		local nameLabel = Instance.new("TextLabel")
+		nameLabel.Size = UDim2.new(1,0,1,0)
+		nameLabel.BackgroundTransparency = 0.3 -- highlighted
+		nameLabel.BackgroundColor3 = Color3.fromRGB(0,0,0)
+		nameLabel.TextColor3 = Color3.fromRGB(255,0,0) -- red
+		nameLabel.TextStrokeTransparency = 0 -- glow
+		nameLabel.TextScaled = true
+		nameLabel.Font = Enum.Font.GothamBold
+		nameLabel.Text = target.Name
+		nameLabel.Parent = billboard
+
+		-- Body Box (FULL BLACK + BIGGER)
+		local box = Instance.new("BoxHandleAdornment")
+		box.Adornee = target.Character:FindFirstChild("HumanoidRootPart")
+		box.Size = Vector3.new(4,8,3) -- bigger
+		box.Color3 = Color3.fromRGB(0,0,0) -- fully black
+		box.Transparency = 0 -- solid black
+		box.AlwaysOnTop = true
+		box.ZIndex = 10
+		box.Parent = target.Character
+
+		espMarkers[target] = {billboard = billboard, box = box}
+	end
+end
+
 local function setupESPConnections(plr)
 	plr.CharacterAdded:Connect(function()
 		task.wait(0.1)
-		applyESP(plr)
+		if PLAYER_ESP_ENABLED then
+			applyESP(plr)
+		end
 	end)
-	if plr.Character then
+	if plr.Character and PLAYER_ESP_ENABLED then
 		applyESP(plr)
 	end
 end
@@ -498,18 +508,15 @@ Players.PlayerAdded:Connect(function(plr)
 	setupESPConnections(plr)
 end)
 
--- ESP toggle
 RunService.RenderStepped:Connect(function()
 	if PLAYER_ESP_ENABLED then
 		for _, plr in pairs(Players:GetPlayers()) do
 			applyESP(plr)
 		end
 	else
-		for target, markers in pairs(espMarkers) do
-			if markers.billboard then markers.billboard:Destroy() end
-			if markers.box then markers.box:Destroy() end
+		for target, _ in pairs(espMarkers) do
+			removeESP(target)
 		end
-		espMarkers = {}
 	end
 end)
 
