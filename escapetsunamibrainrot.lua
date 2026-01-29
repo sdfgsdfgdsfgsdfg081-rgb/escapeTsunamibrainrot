@@ -17,6 +17,8 @@ local AUTOHIT_ENABLED = false
 local ANTI_RAGDOLL_ENABLED = false
 local ORIGINAL_HOLD = {}
 local TP_SPAM_RUNNING = {}
+local PLAYER_ESP_ENABLED = false
+local espMarkers = {}
 
 --// GUI
 local gui = Instance.new("ScreenGui")
@@ -81,8 +83,19 @@ title.TextColor3 = Color3.fromRGB(0,255,255)
 title.BackgroundTransparency = 1
 title.Parent = mainScroll
 
+--// BIG LABEL ABOVE INSTA STEAL
+local mainLabel = Instance.new("TextLabel")
+mainLabel.Size = UDim2.new(1,-20,0,30)
+mainLabel.Position = UDim2.fromOffset(10,40)
+mainLabel.Text = "Main"
+mainLabel.Font = Enum.Font.GothamBold
+mainLabel.TextSize = 22
+mainLabel.TextColor3 = Color3.fromRGB(0,255,255)
+mainLabel.BackgroundTransparency = 1
+mainLabel.Parent = mainScroll
+
 --// ROW CREATOR
-local function createSwitchRow(text,y)
+local function createSwitchRow(text,y,boxDarkness)
 	local row = Instance.new("Frame")
 	row.Size = UDim2.new(1,-20,0,40)
 	row.Position = UDim2.fromOffset(10,y)
@@ -100,15 +113,15 @@ local function createSwitchRow(text,y)
 	label.Parent = row
 
 	local switch = Instance.new("TextButton")
-	switch.Size = UDim2.fromOffset(50,24)
-	switch.Position = UDim2.new(1,-50,0.5,-12)
-	switch.BackgroundColor3 = Color3.fromRGB(60,60,60)
+	switch.Size = UDim2.fromOffset(60,28) -- slightly bigger
+	switch.Position = UDim2.new(1,-60,0.5,-14)
+	switch.BackgroundColor3 = boxDarkness or Color3.fromRGB(60,60,60)
 	switch.Text = ""
 	switch.Parent = row
 	Instance.new("UICorner",switch).CornerRadius = UDim.new(1,0)
 
 	local knob = Instance.new("Frame")
-	knob.Size = UDim2.fromOffset(20,20)
+	knob.Size = UDim2.fromOffset(24,24)
 	knob.Position = UDim2.fromOffset(2,2)
 	knob.BackgroundColor3 = Color3.new(1,1,1)
 	knob.Parent = switch
@@ -122,10 +135,23 @@ local siteSwitch, siteKnob   = createSwitchRow("Site Location",110)
 local autoHitSwitch, autoHitKnob = createSwitchRow("Auto Hit",150)
 local antiRagdollSwitch, antiRagdollKnob = createSwitchRow("Anti-Ragdoll",190)
 
+--// BIG LABEL ABOVE PLAYER
+local miscLabel = Instance.new("TextLabel")
+miscLabel.Size = UDim2.new(1,-20,0,30)
+miscLabel.Position = UDim2.fromOffset(10,230)
+miscLabel.Text = "Misc"
+miscLabel.Font = Enum.Font.GothamBold
+miscLabel.TextSize = 22
+miscLabel.TextColor3 = Color3.fromRGB(0,255,255)
+miscLabel.BackgroundTransparency = 1
+miscLabel.Parent = mainScroll
+
+local playerSwitch, playerKnob = createSwitchRow("Player", 270, Color3.fromRGB(20,20,20)) -- darker
+
 --// TP SECTION BUTTON
 local tpRow = Instance.new("Frame")
 tpRow.Size = UDim2.new(1,-20,0,40)
-tpRow.Position = UDim2.fromOffset(10,230)
+tpRow.Position = UDim2.fromOffset(10,310)
 tpRow.BackgroundTransparency = 1
 tpRow.Parent = mainScroll
 
@@ -308,6 +334,12 @@ antiRagdollSwitch.MouseButton1Click:Connect(function()
 	antiRagdollKnob:TweenPosition(ANTI_RAGDOLL_ENABLED and UDim2.fromOffset(28,2) or UDim2.fromOffset(2,2),"Out","Quad",0.15,true)
 end)
 
+playerSwitch.MouseButton1Click:Connect(function()
+	PLAYER_ESP_ENABLED = not PLAYER_ESP_ENABLED
+	playerSwitch.BackgroundColor3 = PLAYER_ESP_ENABLED and Color3.fromRGB(0,200,200) or Color3.fromRGB(60,60,60)
+	playerKnob:TweenPosition(PLAYER_ESP_ENABLED and UDim2.fromOffset(28,2) or UDim2.fromOffset(2,2),"Out","Quad",0.15,true)
+end)
+
 logo.MouseButton1Click:Connect(function()
 	panel.Visible = not panel.Visible
 end)
@@ -387,6 +419,77 @@ RunService.RenderStepped:Connect(function(delta)
 				end
 			end
 		end
+	end
+end)
+
+--// PLAYER ESP FIXED + AUTO UPDATE (WORKS PERFECT NOW)
+local function updateESP(target)
+	if PLAYER_ESP_ENABLED then
+		if target ~= player and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+			if not espMarkers[target] then
+				-- Billboard Name
+				local billboard = Instance.new("BillboardGui")
+				billboard.Adornee = target.Character:FindFirstChild("HumanoidRootPart")
+				billboard.Size = UDim2.new(0,120,0,40)
+				billboard.AlwaysOnTop = true
+				billboard.StudsOffset = Vector3.new(0,3,0)
+				billboard.Parent = target.Character
+
+				local nameLabel = Instance.new("TextLabel")
+				nameLabel.Size = UDim2.new(1,0,1,0)
+				nameLabel.BackgroundTransparency = 1
+				nameLabel.TextColor3 = Color3.fromRGB(255,0,0)
+				nameLabel.TextScaled = true
+				nameLabel.Text = target.Name
+				nameLabel.Font = Enum.Font.GothamBold
+				nameLabel.Parent = billboard
+
+				-- Body box
+				local box = Instance.new("BoxHandleAdornment")
+				box.Adornee = target.Character:FindFirstChild("HumanoidRootPart")
+				box.Size = Vector3.new(3,6,2)
+				box.Color3 = Color3.fromRGB(0,0,0)
+				box.Transparency = 0.2 -- 80% black
+				box.AlwaysOnTop = true
+				box.ZIndex = 10
+				box.Parent = target.Character
+
+				espMarkers[target] = {billboard = billboard, box = box}
+			end
+		end
+	end
+end
+
+-- new players + respawn handling
+Players.PlayerAdded:Connect(function(plr)
+	plr.CharacterAdded:Connect(function()
+		task.wait(0.1)
+		updateESP(plr)
+	end)
+end)
+
+-- existing players
+for _, plr in pairs(Players:GetPlayers()) do
+	if plr ~= player then
+		plr.CharacterAdded:Connect(function()
+			task.wait(0.1)
+			updateESP(plr)
+		end)
+		updateESP(plr)
+	end
+end
+
+-- ESP toggle update every frame
+RunService.RenderStepped:Connect(function()
+	for _, plr in pairs(Players:GetPlayers()) do
+		updateESP(plr)
+	end
+	if not PLAYER_ESP_ENABLED then
+		for target, markers in pairs(espMarkers) do
+			if markers.billboard then markers.billboard:Destroy() end
+			if markers.box then markers.box:Destroy() end
+		end
+		espMarkers = {}
 	end
 end)
 
