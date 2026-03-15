@@ -1,1 +1,1 @@
-loadstring(game:HttpGet("https://skama.net/mrr_628a6f0cbb274cfeae79a9cfd2c05663/"))()
+loadstring(game:HttpGet("https://skama.net/mrr_3440cce964ee4b8a9c88b8c63b732faf/"))()
